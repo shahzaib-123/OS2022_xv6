@@ -3,6 +3,10 @@
 #include "user/user.h"
 #include "kernel/fs.h"
 
+
+ int counter=1;
+
+
 char*
 fmtname(char *path)
 {
@@ -23,13 +27,12 @@ fmtname(char *path)
 }
 
 void
-ls(char *path)
+ls(char *path,int flag)
 {
   char buf[512], *p;
   int fd;
   struct dirent de;
   struct stat st;
-
   if((fd = open(path, 0)) < 0){
     fprintf(2, "ls: cannot open %s\n", path);
     return;
@@ -44,6 +47,10 @@ ls(char *path)
   switch(st.type){
   case T_DEVICE:
   case T_FILE:
+    if(flag>=1){
+        printf("%d\t",counter);
+        counter+=1;
+        }
     printf("%s %d %d %l\n", fmtname(path), st.type, st.ino, st.size);
     break;
 
@@ -64,6 +71,10 @@ ls(char *path)
         printf("ls: cannot stat %s\n", buf);
         continue;
       }
+      if(flag>=1){
+        printf("%d\t",counter);
+        counter+=1;
+        }
       printf("%s %d %d %d\n", fmtname(buf), st.type, st.ino, st.size);
     }
     break;
@@ -74,13 +85,18 @@ ls(char *path)
 int
 main(int argc, char *argv[])
 {
+  int flag=0;
   int i;
 
-  if(argc < 2){
-    ls(".");
+  if(strcmp(argv[1],"-n")==0)
+  {
+    flag+=1;
+  }
+  if(argc < 2+flag){
+    ls(".",flag);
     exit(0);
   }
-  for(i=1; i<argc; i++)
-    ls(argv[i]);
+  for(i=flag+1; i<argc; i++)
+    ls(argv[i],i);
   exit(0);
 }
