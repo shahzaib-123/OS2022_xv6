@@ -87,7 +87,6 @@ main(int argc, char *argv[])
 {
   int flag=0;
   int i;
-
   if(strcmp(argv[1],"-n")==0)
   {
     flag+=1;
