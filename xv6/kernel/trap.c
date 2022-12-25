@@ -33,6 +33,36 @@ trapinithart(void)
 // handle an interrupt, exception, or system call from user space.
 // called from trampoline.S
 //
+void add_ref(void *pa) {
+//int index = get_ref_index(pa);
+int index = 10;
+  if (index == -1) {
+    return;
+   }
+   
+//efc[index]=refc[index]+1;refc
+index=index+1;
+}
+void dec_ref(void *pa) {
+//int index = get_ref_index(pa);
+int index = 10;
+//int r;
+  if (index == -1) {
+    return;
+  }
+//int cur_count =refc[index];
+ int cur_count=index;
+//}
+//int cur_count = [index]; //refc
+  if (cur_count <= 0) {
+    panic("ef a freed page!");
+  }
+  index = cur_count-1;
+//if ([index] == 0) { //refc
+  if(index == 0) {
+    dec_ref(pa);
+  }
+}
 void
 usertrap(void)
 {
@@ -65,7 +95,32 @@ usertrap(void)
     intr_on();
 
     syscall();
-  } else if((which_dev = devintr()) != 0){
+  } 
+  else if(r_scause()==15){
+    uint64 start_va = PGROUNDDOWN(r_stval());
+    pte_t *pte;
+    pte = walk(p->pagetable, start_va, 0);
+    if (pte == 0) {
+      printf("pge not found\n");
+      p->killed = 1;
+    //goto end;
+    }
+    if ((*pte & PTE_V) && (*pte & PTE_U) && (*pte & PTE_R)) { //ptersw
+      uint flags = PTE_FLAGS(*pte);
+      flags |= PTE_W;
+      flags &= (~PTE_R); //rsw
+      char *mem = kalloc();
+      char *pa = (char *)PTE2PA(*pte);
+      memmove(mem, pa, PGSIZE);
+      uvmunmap(p->pagetable, start_va, PGSIZE, 0);
+      dec_ref((void*)pa);
+      if (mappages(p->pagetable, start_va, PGSIZE, (uint64)mem, flags) != 0) {
+      p->killed = 1;
+      printf("ometthing is wrong in mappages in trap.\n");
+      }
+    }
+   }
+  else if((which_dev = devintr()) != 0){
     // ok
   } else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);

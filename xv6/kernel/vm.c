@@ -308,7 +308,7 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
   pte_t *pte;
   uint64 pa, i;
   uint flags;
-  char *mem;
+  //char *mem;
 
   for(i = 0; i < sz; i += PGSIZE){
     if((pte = walk(old, i, 0)) == 0)
@@ -317,7 +317,29 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
       panic("uvmcopy: page not present");
     pa = PTE2PA(*pte);
     flags = PTE_FLAGS(*pte);
-    if((mem = kalloc()) == 0)
+    
+    flags |= PTE_R; //PTE_RSW --> KEEP track of the pg that is cow mapping
+    flags &= (~PTE_W); //--> CLEAR THIS IN PARAMETER IN PTES OF BOTH CHILD AND PARENT
+    
+    if(mappages(new,i,PGSIZE,(uint64)pa,flags) !=0){
+    	//kfree(mem);
+    	goto err; // free the mem
+    }
+    
+    //add_ref((void*)pa);// bump reference count*
+   err:
+    uvmunmap(old,i,PGSIZE,0);//remove the mapping of parent pg table
+    
+    if(mappages(old,i,PGSIZE,pa,flags) != 0){//readd mapping with write bit cleared flags
+    	//kfree(mem);
+    	goto err; // free mem
+    }
+   }
+   return -1;
+}
+  
+    
+    /*if((mem = kalloc()) == 0)
       goto err;
     memmove(mem, (char*)pa, PGSIZE);
     if(mappages(new, i, PGSIZE, (uint64)mem, flags) != 0){
@@ -326,11 +348,12 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
     }
   }
   return 0;
+ */
 
- err:
-  uvmunmap(new, 0, i / PGSIZE, 1);
-  return -1;
-}
+ //err:
+  //uvmunmap(new, 0, i / PGSIZE, 1);
+  //return -1;
+//}
 
 // mark a PTE invalid for user access.
 // used by exec for the user stack guard page.
